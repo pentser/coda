@@ -84,7 +84,7 @@ namespace HardCoded.VRigUnity
             // Start recording on first frame
             if (!isRecording && (holisticGraph != null))
             {
-                StartRecording();
+                StartRecordingInternal();
             }
 
             // Save on key press
@@ -94,7 +94,7 @@ namespace HardCoded.VRigUnity
             }
         }
 
-        void StartRecording()
+        void StartRecordingInternal()
         {
             isRecording = true;
             startTime = Time.time;
