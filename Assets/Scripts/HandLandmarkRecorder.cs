@@ -46,6 +46,8 @@ namespace HardCoded.VRigUnity
         private List<HandLandmarkFrame> rightHandFrames = new List<HandLandmarkFrame>();
         private bool isRecording = false;
         private float startTime;
+        private bool leftHandSubscribed = false;
+        private bool rightHandSubscribed = false;
 
         void Start()
         {
@@ -105,15 +107,41 @@ namespace HardCoded.VRigUnity
             {
                 if (holisticGraph != null)
                 {
+                    bool leftHandSubscribed = false;
+                    bool rightHandSubscribed = false;
+                    
                     if (recordLeftHand)
                     {
-                        holisticGraph.OnLeftHandLandmarksOutput += OnLeftHandLandmarksOutput;
+                        try
+                        {
+                            holisticGraph.OnLeftHandLandmarksOutput += OnLeftHandLandmarksOutput;
+                            leftHandSubscribed = true;
+                            Debug.Log("HandLandmarkRecorder: Successfully subscribed to left hand events");
+                        }
+                        catch (System.Exception e)
+                        {
+                            Debug.LogError($"HandLandmarkRecorder: Failed to subscribe to left hand events: {e.Message}");
+                        }
                     }
+                    
                     if (recordRightHand)
                     {
-                        holisticGraph.OnRightHandLandmarksOutput += OnRightHandLandmarksOutput;
+                        try
+                        {
+                            holisticGraph.OnRightHandLandmarksOutput += OnRightHandLandmarksOutput;
+                            rightHandSubscribed = true;
+                            Debug.Log("HandLandmarkRecorder: Successfully subscribed to right hand events");
+                        }
+                        catch (System.Exception e)
+                        {
+                            Debug.LogError($"HandLandmarkRecorder: Failed to subscribe to right hand events: {e.Message}");
+                        }
                     }
-                    Debug.Log("HandLandmarkRecorder: Successfully subscribed to HolisticGraph events");
+                    
+                    if (leftHandSubscribed || rightHandSubscribed)
+                    {
+                        Debug.Log("HandLandmarkRecorder: Successfully subscribed to HolisticGraph events");
+                    }
                 }
                 else
                 {
@@ -134,10 +162,24 @@ namespace HardCoded.VRigUnity
                 StartRecordingInternal();
             }
 
-            // Save on key press
-            if (saveOnKeyPress && Input.GetKeyDown(saveKey))
+            // Save on key press - test multiple keys
+            if (saveOnKeyPress)
             {
-                SaveToJson();
+                if (Input.GetKeyDown(saveKey))
+                {
+                    Debug.Log($"HandLandmarkRecorder: {saveKey} key pressed - saving JSON");
+                    SaveToJson();
+                }
+                else if (Input.GetKeyDown(KeyCode.S))
+                {
+                    Debug.Log("HandLandmarkRecorder: S key pressed - saving JSON");
+                    SaveToJson();
+                }
+                else if (Input.GetKeyDown(KeyCode.P))
+                {
+                    Debug.Log("HandLandmarkRecorder: P key pressed - saving JSON");
+                    SaveToJson();
+                }
             }
         }
 
@@ -162,6 +204,12 @@ namespace HardCoded.VRigUnity
             frame.timestamp = Time.time - startTime;
             
             leftHandFrames.Add(frame);
+            
+            // Debug: Log every 30 frames (about once per second at 30fps)
+            if (leftHandFrames.Count % 30 == 0)
+            {
+                Debug.Log($"HandLandmarkRecorder: Recorded {leftHandFrames.Count} left hand frames");
+            }
         }
 
         void OnRightHandLandmarksOutput(object sender, OutputEventArgs<NormalizedLandmarkList> e)
@@ -178,55 +226,116 @@ namespace HardCoded.VRigUnity
             frame.timestamp = Time.time - startTime;
             
             rightHandFrames.Add(frame);
+            
+            // Debug: Log every 30 frames (about once per second at 30fps)
+            if (rightHandFrames.Count % 30 == 0)
+            {
+                Debug.Log($"HandLandmarkRecorder: Recorded {rightHandFrames.Count} right hand frames");
+            }
         }
 
         public void SaveToJson()
         {
+            Debug.Log("HandLandmarkRecorder: SaveToJson() called");
+            Debug.Log($"HandLandmarkRecorder: Left hand frames: {leftHandFrames.Count}");
+            Debug.Log($"HandLandmarkRecorder: Right hand frames: {rightHandFrames.Count}");
+            
             string folderPath = Path.Combine(Application.dataPath, folderName);
             string filePath = Path.Combine(folderPath, fileName);
+            
+            Debug.Log($"HandLandmarkRecorder: Folder path: {folderPath}");
+            Debug.Log($"HandLandmarkRecorder: File path: {filePath}");
+
+            // Create folder if it doesn't exist
+            if (!Directory.Exists(folderPath))
+            {
+                try
+                {
+                    Directory.CreateDirectory(folderPath);
+                    Debug.Log($"HandLandmarkRecorder: Created folder: {folderPath}");
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogError($"HandLandmarkRecorder: Failed to create folder: {e.Message}");
+                    return;
+                }
+            }
 
             // Save left hand data
             if (leftHandFrames.Count > 0)
             {
-                var leftHandVideo = new HandLandmarkVideo
+                try
                 {
-                    frames = leftHandFrames.ToArray(),
-                    handType = "left",
-                    totalFrames = leftHandFrames.Count
-                };
-                string leftHandJson = JsonUtility.ToJson(leftHandVideo, true);
-                string leftHandFilePath = filePath.Replace(".json", "_left.json");
-                File.WriteAllText(leftHandFilePath, leftHandJson);
-                Debug.Log($"HandLandmarkRecorder: Saved {leftHandFrames.Count} left hand frames to {leftHandFilePath}");
+                    var leftHandVideo = new HandLandmarkVideo
+                    {
+                        frames = leftHandFrames.ToArray(),
+                        handType = "left",
+                        totalFrames = leftHandFrames.Count
+                    };
+                    string leftHandJson = JsonUtility.ToJson(leftHandVideo, true);
+                    string leftHandFilePath = filePath.Replace(".json", "_left.json");
+                    File.WriteAllText(leftHandFilePath, leftHandJson);
+                    Debug.Log($"HandLandmarkRecorder: Saved {leftHandFrames.Count} left hand frames to {leftHandFilePath}");
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogError($"HandLandmarkRecorder: Failed to save left hand data: {e.Message}");
+                }
+            }
+            else
+            {
+                Debug.Log("HandLandmarkRecorder: No left hand frames to save");
             }
 
             // Save right hand data
             if (rightHandFrames.Count > 0)
             {
-                var rightHandVideo = new HandLandmarkVideo
+                try
                 {
-                    frames = rightHandFrames.ToArray(),
-                    handType = "right",
-                    totalFrames = rightHandFrames.Count
-                };
-                string rightHandJson = JsonUtility.ToJson(rightHandVideo, true);
-                string rightHandFilePath = filePath.Replace(".json", "_right.json");
-                File.WriteAllText(rightHandFilePath, rightHandJson);
-                Debug.Log($"HandLandmarkRecorder: Saved {rightHandFrames.Count} right hand frames to {rightHandFilePath}");
+                    var rightHandVideo = new HandLandmarkVideo
+                    {
+                        frames = rightHandFrames.ToArray(),
+                        handType = "right",
+                        totalFrames = rightHandFrames.Count
+                    };
+                    string rightHandJson = JsonUtility.ToJson(rightHandVideo, true);
+                    string rightHandFilePath = filePath.Replace(".json", "_right.json");
+                    File.WriteAllText(rightHandFilePath, rightHandJson);
+                    Debug.Log($"HandLandmarkRecorder: Saved {rightHandFrames.Count} right hand frames to {rightHandFilePath}");
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogError($"HandLandmarkRecorder: Failed to save right hand data: {e.Message}");
+                }
+            }
+            else
+            {
+                Debug.Log("HandLandmarkRecorder: No right hand frames to save");
             }
 
             // Save combined data
             if (leftHandFrames.Count > 0 || rightHandFrames.Count > 0)
             {
-                var combinedVideo = new HandLandmarkVideo
+                try
                 {
-                    frames = leftHandFrames.Concat(rightHandFrames).ToArray(),
-                    handType = "both",
-                    totalFrames = leftHandFrames.Count + rightHandFrames.Count
-                };
-                string combinedJson = JsonUtility.ToJson(combinedVideo, true);
-                File.WriteAllText(filePath, combinedJson);
-                Debug.Log($"HandLandmarkRecorder: Saved combined data to {filePath}");
+                    var combinedVideo = new HandLandmarkVideo
+                    {
+                        frames = leftHandFrames.Concat(rightHandFrames).ToArray(),
+                        handType = "both",
+                        totalFrames = leftHandFrames.Count + rightHandFrames.Count
+                    };
+                    string combinedJson = JsonUtility.ToJson(combinedVideo, true);
+                    File.WriteAllText(filePath, combinedJson);
+                    Debug.Log($"HandLandmarkRecorder: Saved combined data to {filePath}");
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogError($"HandLandmarkRecorder: Failed to save combined data: {e.Message}");
+                }
+            }
+            else
+            {
+                Debug.Log("HandLandmarkRecorder: No data to save");
             }
         }
 
@@ -241,16 +350,40 @@ namespace HardCoded.VRigUnity
         void OnDestroy()
         {
             // Clean up event listeners
-            if (holisticGraph != null)
+            try
             {
-                if (recordLeftHand)
+                if (holisticGraph != null)
                 {
-                    holisticGraph.OnLeftHandLandmarksOutput -= OnLeftHandLandmarksOutput;
+                    if (leftHandSubscribed)
+                    {
+                        try
+                        {
+                            holisticGraph.OnLeftHandLandmarksOutput -= OnLeftHandLandmarksOutput;
+                            Debug.Log("HandLandmarkRecorder: Successfully unsubscribed from left hand events");
+                        }
+                        catch (System.Exception e)
+                        {
+                            Debug.LogWarning($"HandLandmarkRecorder: Error unsubscribing from left hand events: {e.Message}");
+                        }
+                    }
+                    
+                    if (rightHandSubscribed)
+                    {
+                        try
+                        {
+                            holisticGraph.OnRightHandLandmarksOutput -= OnRightHandLandmarksOutput;
+                            Debug.Log("HandLandmarkRecorder: Successfully unsubscribed from right hand events");
+                        }
+                        catch (System.Exception e)
+                        {
+                            Debug.LogWarning($"HandLandmarkRecorder: Error unsubscribing from right hand events: {e.Message}");
+                        }
+                    }
                 }
-                if (recordRightHand)
-                {
-                    holisticGraph.OnRightHandLandmarksOutput -= OnRightHandLandmarksOutput;
-                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"HandLandmarkRecorder: Error during cleanup: {e.Message}");
             }
         }
 
