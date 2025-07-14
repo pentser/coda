@@ -75,23 +75,50 @@ namespace HardCoded.VRigUnity
 
         private System.Collections.IEnumerator SubscribeToEventsWhenReady()
         {
-            // Wait a few frames to ensure HolisticGraph is properly initialized
-            yield return new WaitForEndOfFrame();
-            yield return new WaitForEndOfFrame();
-            yield return new WaitForEndOfFrame();
+            // Wait for Bootstrap to finish initialization
+            var bootstrap = SolutionUtils.GetBootstrap();
+            if (bootstrap != null)
+            {
+                yield return new WaitUntil(() => bootstrap.IsFinished);
+            }
+
+            // Wait for HolisticGraph to be properly initialized
+            if (holisticGraph != null)
+            {
+                // Wait for the graph to be initialized
+                var initRequest = holisticGraph.WaitForInitAsync();
+                yield return initRequest;
+                
+                if (initRequest.isError)
+                {
+                    Debug.LogError($"HandLandmarkRecorder: Failed to initialize HolisticGraph: {initRequest.error}");
+                    yield break;
+                }
+                
+                // Wait a bit more to ensure streams are created
+                yield return new WaitForEndOfFrame();
+                yield return new WaitForEndOfFrame();
+            }
 
             // Try to subscribe to events
             try
             {
-                if (recordLeftHand)
+                if (holisticGraph != null)
                 {
-                    holisticGraph.OnLeftHandLandmarksOutput += OnLeftHandLandmarksOutput;
+                    if (recordLeftHand)
+                    {
+                        holisticGraph.OnLeftHandLandmarksOutput += OnLeftHandLandmarksOutput;
+                    }
+                    if (recordRightHand)
+                    {
+                        holisticGraph.OnRightHandLandmarksOutput += OnRightHandLandmarksOutput;
+                    }
+                    Debug.Log("HandLandmarkRecorder: Successfully subscribed to HolisticGraph events");
                 }
-                if (recordRightHand)
+                else
                 {
-                    holisticGraph.OnRightHandLandmarksOutput += OnRightHandLandmarksOutput;
+                    Debug.LogError("HandLandmarkRecorder: HolisticGraph is null after initialization");
                 }
-                Debug.Log("HandLandmarkRecorder: Successfully subscribed to HolisticGraph events");
             }
             catch (System.Exception e)
             {
