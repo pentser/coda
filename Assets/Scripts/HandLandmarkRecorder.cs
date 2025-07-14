@@ -57,14 +57,8 @@ namespace HardCoded.VRigUnity
 
             if (holisticGraph != null)
             {
-                if (recordLeftHand)
-                {
-                    holisticGraph.OnLeftHandLandmarksOutput += OnLeftHandLandmarksOutput;
-                }
-                if (recordRightHand)
-                {
-                    holisticGraph.OnRightHandLandmarksOutput += OnRightHandLandmarksOutput;
-                }
+                // Subscribe to events after a short delay to ensure HolisticGraph is initialized
+                StartCoroutine(SubscribeToEventsWhenReady());
             }
             else
             {
@@ -76,6 +70,32 @@ namespace HardCoded.VRigUnity
             if (!Directory.Exists(folderPath))
             {
                 Directory.CreateDirectory(folderPath);
+            }
+        }
+
+        private System.Collections.IEnumerator SubscribeToEventsWhenReady()
+        {
+            // Wait a few frames to ensure HolisticGraph is properly initialized
+            yield return new WaitForEndOfFrame();
+            yield return new WaitForEndOfFrame();
+            yield return new WaitForEndOfFrame();
+
+            // Try to subscribe to events
+            try
+            {
+                if (recordLeftHand)
+                {
+                    holisticGraph.OnLeftHandLandmarksOutput += OnLeftHandLandmarksOutput;
+                }
+                if (recordRightHand)
+                {
+                    holisticGraph.OnRightHandLandmarksOutput += OnRightHandLandmarksOutput;
+                }
+                Debug.Log("HandLandmarkRecorder: Successfully subscribed to HolisticGraph events");
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"HandLandmarkRecorder: Failed to subscribe to events: {e.Message}");
             }
         }
 
